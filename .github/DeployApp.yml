@@ -1,0 +1,49 @@
+name: App-Deployment
+on:
+  push:
+    branches:
+      - master
+env:
+  AZURE_WEBAPP_NAME: opensource2022
+  AZURE_WEBAPP_PACKAGE_PATH: devkit-backend/publish
+  CONFIGURATION: Release
+  DOTNET_CORE_VERSION: 6.0.x
+  WORKING_DIRECTORY: src
+jobs:
+  build-and-deploy-prod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
+      - name: Restore
+        run: dotnet restore "${{ env.WORKING_DIRECTORY }}"
+      - name: Build
+        run: dotnet build "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-restore
+      - name: Test
+        run: dotnet test "${{ env.WORKING_DIRECTORY }}" --no-build
+      - name: Setup Azure SPN Certificate file inside the runner
+        env:
+          CERT: ${{ secrets.SPN_PEM }}
+        run: |
+          echo "$CERT" > file.pem
+      - name: Login to Azure
+        run: |
+          az login --service-principal -u ${{ secrets.SPN_APPLICATION_ID }} -p file.pem --tenant ${{ secrets.SPN_TENANT_ID }}
+      - name: Publish
+        run: dotnet publish "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
+      - name: Deploy to Azure WebApp
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+      - name: Publish Artifacts
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: webapp
+          path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+      - name: logout
+        run: |
+          az logout
