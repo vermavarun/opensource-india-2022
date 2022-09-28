@@ -31,7 +31,7 @@ jobs:
           echo "$CERT" > file.pem
       - name: Login to Azure
         run: |
-          az login --service-principal -u ${{ secrets.SPN_APPLICATION_ID }} -p file.pem --tenant ${{ secrets.SPN_TENANT_ID }}
+          az login --service-principal -u ${{ secrets.SPN_APPLICATION_ID }} -p file.pem --tenant ${{ secrets.TENANT_ID }}
       - name: Publish
         run: dotnet publish "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
       - name: Deploy to Azure WebApp
